@@ -1,0 +1,59 @@
+from pathlib import Path
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse
+
+BASE_DIR = Path(__file__).resolve().parent
+RESUME_FILE = BASE_DIR / "43.pdf"
+
+
+class PortfolioHandler(BaseHTTPRequestHandler):
+    def send_file(self, path: Path, content_type: str, download_name: str | None = None):
+        if not path.is_file():
+            self.send_error(404, "File not found")
+            return
+
+        data = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        if download_name:
+            self.send_header(
+                "Content-Disposition",
+                f'attachment; filename="{download_name}"'
+            )
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        route = urlparse(self.path).path
+
+        if route == "/":
+            self.send_file(BASE_DIR / "index.html", "text/html; charset=utf-8")
+        elif route == "/style.css":
+            self.send_file(BASE_DIR / "style.css", "text/css; charset=utf-8")
+        elif route == "/script.js":
+            self.send_file(BASE_DIR / "script.js", "application/javascript; charset=utf-8")
+        elif route == "/profile.jpg.jpeg":
+            self.send_file(BASE_DIR / "profile.jpg.jpeg", "image/jpeg")
+        elif route == "/download-resume":
+            self.send_file(
+                RESUME_FILE,
+                "application/pdf",
+                "43.pdf"
+            )
+        else:
+            self.send_error(404, "Page not found")
+
+
+if __name__ == "__main__":
+    host = "127.0.0.1"
+    port = 8000
+    server = ThreadingHTTPServer((host, port), PortfolioHandler)
+    print(f"Portfolio running at http://{host}:{port}")
+    print("Resume download: http://127.0.0.1:8000/download-resume")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nServer stopped.")
+    finally:
+        server.server_close()
